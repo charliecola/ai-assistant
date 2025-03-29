@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 脸部和头部 -->
+  <circle cx="100" cy="80" r="60" fill="#FFD8B9" />
+  
+  <!-- 头发 -->
+  <path d="M45 80 Q50 20 100 30 Q150 20 155 80" fill="#553622" />
+  <path d="M45 80 Q60 95 100 95 Q140 95 155 80" fill="#553622" />
+  
+  <!-- 刘海 -->
+  <path d="M60 60 Q80 45 100 45 Q120 45 140 60" fill="#553622" />
+  
+  <!-- 眼睛 -->
+  <ellipse cx="80" cy="70" rx="10" ry="12" fill="#FFFFFF" />
+  <ellipse cx="120" cy="70" rx="10" ry="12" fill="#FFFFFF" />
+  <ellipse cx="80" cy="70" rx="6" ry="8" fill="#332211" />
+  <ellipse cx="120" cy="70" rx="6" ry="8" fill="#332211" />
+  <ellipse cx="82" cy="68" rx="2" ry="2" fill="#FFFFFF" />
+  <ellipse cx="122" cy="68" rx="2" ry="2" fill="#FFFFFF" />
+  
+  <!-- 嘴巴 -->
+  <path d="M90 95 Q100 105 110 95" fill="none" stroke="#CC6666" stroke-width="2" />
+  
+  <!-- 脸颊 -->
+  <circle cx="75" cy="85" r="8" fill="#FFBBBB" opacity="0.6" />
+  <circle cx="125" cy="85" r="8" fill="#FFBBBB" opacity="0.6" />
+  
+  <!-- 花朵装饰 -->
+  <circle cx="135" cy="35" r="8" fill="#FFD700" />
+  <circle cx="142" cy="28" r="8" fill="#FF9900" />
+  <circle cx="142" cy="42" r="8" fill="#FF6347" />
+  <circle cx="128" cy="28" r="8" fill="#FF4500" />
+  <circle cx="128" cy="42" r="8" fill="#FFA500" />
+  
+  <!-- 向日葵 -->
+  <circle cx="142" cy="15" r="10" fill="#FFD700" />
+  <circle cx="142" cy="15" r="5" fill="#663300" />
+  
+  <!-- 衣服 -->
+  <rect x="70" y="140" width="60" height="60" fill="#663300" />
+  <rect x="75" y="115" width="50" height="30" fill="#6699CC" />
+  <rect x="75" y="140" width="50" height="5" fill="#FFCC00" />
+</svg>
