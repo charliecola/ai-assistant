@@ -1,7 +1,10 @@
 import request from '@/utils/request'
 
+// 从环境变量获取应用ID
+const APP_ID = import.meta.env.VITE_APP_ID
+
 // API基础前缀
-const API_PREFIX = '/api/v1/agentbots/79f3833e093f11f094b00242ac140006'
+const API_PREFIX = `/api/v1/agentbots/${APP_ID}`
 
 // RegFlow API接口封装
 export default {
@@ -11,18 +14,21 @@ export default {
    * @returns {Promise} 返回Promise对象
    */
   sendMessage(data) {
-    return request({
+    return request.sseRequest(`${API_PREFIX}/completions`, {
+      conversation: APP_ID,
+      quote: true,
+      session_id: data.sessionId,
+      question: data.message
+    })
+  },
+  
+  
+  initSession() {
+    return request.realtimeStream({
       url: `${API_PREFIX}/completions`,
-      method: 'post',
+      method: 'POST',
       data: {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: data.message
-          }
-        ],
-        session_id: data.sessionId
+        question: ""
       }
     })
   },
@@ -51,15 +57,15 @@ export default {
   },
 
   /**
-   * 创建新会话
-   * @returns {Promise} 返回Promise对象
+   * 创建新会话（实时流式响应）
+   * @returns {Promise} 返回包含响应和处理方法的Promise对象
    */
-  createSession() {
-    return request({
-      url: `${API_PREFIX}/sessions`,
-      method: 'post',
+  createSessionRealtime() {
+    return request.realtimeStream({
+      url: `${API_PREFIX}/completions`,
+      method: 'POST',
       data: {
-        title: '新会话'
+        question: ''
       }
     })
   },

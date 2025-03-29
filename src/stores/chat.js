@@ -1,46 +1,81 @@
 import { defineStore } from 'pinia'
 import regflowApi from '@/api/regflow'
 import { ElMessage } from 'element-plus'
+import http from '@/utils/request'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
     sessionId: '',
     messageList: [],
     historyList: [],
-    loading: false
+    loading: false,
+    streaming: false,
+    streamCancel: null // 用于取消实时流
   }),
 
   actions: {
-    // 创建新会话
-    async createNewSession() {
+    // 创建新会话(实时流式)
+    async createNewSessionRealtime() {
+      // 取消之前的流
+      this.cancelStream()
+      
       this.loading = true
+      this.streaming = true
+      this.sessionId = null
+      this.messageList = []
+      
       try {
-        const res = await regflowApi.createSession()
-        this.sessionId = res.id
-        this.messageList = []
+        // 获取流式响应和处理方法
+        const { process } = await regflowApi.createSessionRealtime()
         
-        // 添加欢迎消息
-        this.messageList.push({
-          role: 'assistant',
-          content: '你好！我是AI助手，有什么可以帮助你的吗？'
-        })
+        // 处理实时流
+        this.streamCancel = process(
+          // 数据处理回调
+          (data) => {
+            if (data.code === 0 && data.data) {
+              // 如果data是对象，包含answer
+              if (typeof data.data === 'object' && data.data.answer) {
+                // 过滤掉思考过程
+                let content = data.data.answer;
+                // 更新sessionId
+                this.sessionId = data.data.session_id;
+                window.sessionStorage.setItem('sessionId', this.sessionId)
+              }
+            }
+          },
+          // 错误处理回调
+          (error) => {
+            console.error('流处理错误:', error)
+            this.loading = false
+            this.streaming = false
+          },
+          // 完成处理回调
+          () => {
+            console.log('流处理完成')
+            this.loading = false
+            this.streaming = false
+            this.streamCancel = null
+          }
+        )
         
-        return res
+        return true
       } catch (error) {
-        console.error('创建会话失败:', error)
-        ElMessage.error('创建会话失败')
-        throw error
-      } finally {
+        console.error('创建新会话失败:', error)
+        ElMessage.error('创建新会话失败')
         this.loading = false
+        this.streaming = false
+        throw error
       }
     },
 
     // 发送消息
     async sendMessage(message) {
       if (!message.trim()) {
-        ElMessage.warning('请输入消息内容')
-        return
+        return false
       }
+      
+      // 取消之前的流
+      this.cancelStream()
       
       // 添加用户消息到列表
       this.messageList.push({
@@ -50,28 +85,89 @@ export const useChatStore = defineStore('chat', {
       
       // 发送请求
       this.loading = true
+      this.streaming = true
       try {
-        const res = await regflowApi.sendMessage({
+        // 获取流式响应和处理方法
+        const response = await regflowApi.sendMessage({
           sessionId: this.sessionId,
           message: message
         })
         
-        // 添加AI回复
-        if (res.choices && res.choices.length > 0) {
-          this.messageList.push({
-            role: res.choices[0].message.role,
-            content: res.choices[0].message.content
-          })
-        }
+        // 添加一个空的助手消息，准备接收流式内容
+        const assistantMessageIndex = this.messageList.push({
+          role: 'assistant',
+          content: ''
+        }) - 1
         
-        return res
+        // 处理实时流
+        this.streamCancel = http.handleStreamResponse(response,
+          // 数据处理回调
+          (data) => {
+            if (data.code === 0 && data.data) {
+              // 如果data是对象，包含answer
+              if (typeof data.data === 'object' && data.data.answer) {
+                // 过滤掉思考过程
+                let content = data.data.answer;
+                if (content.includes('<think>')) {
+                  content = content.replace(/<think>.*?<\/think>/g, '');
+                }
+                // 移除流程提示词
+                // *'问题优化_0'* is running...🕞   *'知识检索_0'* is running...🕞  *'生成回答_0'* is running...🕞
+                content = content.replace(/\*'问题优化_0'\* is running...🕞|\*'知识检索_0'\* is running...🕞|\*'生成回答_0'\* is running...🕞/g, '思考中...');
+                content = content.replace(/####/g, '');
+                // 更新消息内容
+                this.messageList[assistantMessageIndex].content = content;
+              }
+            }
+          },
+          // 错误处理回调
+          (error) => {
+            console.error('流处理错误:', error)
+            this.loading = false
+            this.streaming = false
+          },
+          // 完成处理回调
+          () => {
+            console.log('流处理完成')
+            this.loading = false
+            this.streaming = false
+            this.streamCancel = null
+          }
+        )
+        
+        return response
       } catch (error) {
         console.error('发送消息失败:', error)
         ElMessage.error('发送消息失败，请重试')
-        throw error
-      } finally {
         this.loading = false
+        this.streaming = false
+        throw error
       }
+    },
+
+    // 取消当前流式请求
+    cancelStream() {
+      if (this.streamCancel) {
+        this.streamCancel()
+        this.streamCancel = null
+        this.loading = false
+        this.streaming = false
+        return true
+      }
+      return false
+    },
+    
+    // 暂停/继续响应生成
+    toggleStreamPause() {
+      if (this.streaming) {
+        if (this.streamCancel) {
+          this.streamCancel()
+          this.streamCancel = null
+          this.streaming = false
+          return true
+        }
+      }
+      return false
     },
 
     // 获取历史会话列表
@@ -91,6 +187,9 @@ export const useChatStore = defineStore('chat', {
       if (this.sessionId === id) {
         return
       }
+      
+      // 取消之前的流
+      this.cancelStream()
       
       this.loading = true
       try {
@@ -118,7 +217,9 @@ export const useChatStore = defineStore('chat', {
         
         // 如果删除的是当前会话，创建新会话
         if (this.sessionId === id) {
-          await this.createNewSession()
+          // 取消之前的流
+          this.cancelStream()
+          await this.createNewSessionRealtime()
         }
       } catch (error) {
         console.error('删除会话失败:', error)
