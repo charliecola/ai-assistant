@@ -32,13 +32,13 @@ export function createRequest(customConfig = {}) {
       ...(customConfig.headers || {})
     }
   });
-  
-  // 请求拦截器
+
+// 请求拦截器
   instance.interceptors.request.use(
-    config => {
+  config => {
       // 在请求发送之前添加认证令牌
       const token = import.meta.env.VITE_REGFLOW_API_KEY;
-      if (token) {
+    if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
       
@@ -50,16 +50,16 @@ export function createRequest(customConfig = {}) {
       }
       
       return config;
-    },
-    error => {
+  },
+  error => {
       console.error('请求错误:', error);
       return Promise.reject(error);
-    }
+  }
   );
-  
-  // 响应拦截器
+
+// 响应拦截器
   instance.interceptors.response.use(
-    response => {
+  response => {
       if (DEBUG) {
         console.log('响应状态:', response.status);
         if (!response.config.responseType || response.config.responseType !== 'stream') {
@@ -69,28 +69,28 @@ export function createRequest(customConfig = {}) {
         }
       }
       return response.data;
-    },
-    error => {
+  },
+  error => {
       console.error('响应错误:', error.message);
-      
-      // 处理错误响应
+    
+    // 处理错误响应
       const { response } = error;
       let message = '请求失败';
-      
-      if (response) {
-        if (response.status === 401) {
+    
+    if (response) {
+      if (response.status === 401) {
           message = '身份验证失败，请重新登录';
-          // 清除令牌并重定向到登录页
+        // 清除令牌并重定向到登录页
           localStorage.removeItem('regflow_token');
-        } else if (response.data && response.data.error) {
+      } else if (response.data && response.data.error) {
           message = response.data.error.message || response.data.error;
         }
-      }
-      
-      ElMessage({
-        message,
-        type: 'error',
-        duration: 5 * 1000
+    }
+    
+    ElMessage({
+      message,
+      type: 'error',
+      duration: 5 * 1000
       });
       
       return Promise.reject(error);

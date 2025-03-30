@@ -25,7 +25,7 @@
       <!-- 功能菜单 -->
       <div class="menu-container">
         <div v-for="item in menuItems" :key="item.key" class="menu-item"
-          :class="{ active: currentCategory === item.key }" @click="selectMenu(item.key)">
+          :class="{ active: currentCategory === item.key }" @click="selectMenu(item)">
           <div class="menu-icon">
             <el-icon>
               <component :is="item.icon" />
@@ -36,7 +36,7 @@
       </div>
 
       <!-- 分类问题 -->
-      <div class="question-list" v-if="currentCategory && currentCategoryQuestions.length > 0">
+      <!-- <div class="question-list" v-if="currentCategory && currentCategoryQuestions.length > 0">
         <div class="question-list-title">推荐问题</div>
         <div class="question-items">
           <div v-for="(question, index) in currentCategoryQuestions" :key="index" class="question-item"
@@ -44,7 +44,7 @@
             {{ question }}
           </div>
         </div>
-      </div>
+      </div> -->
 
       <!-- 对话 -->
       <div class="message-list">
@@ -127,7 +127,7 @@
         </template>
         <div class="policy-files-list">
           <div v-for="(file, index) in policyFiles" :key="index" class="policy-file-item">
-            <el-link :href="file.url" type="primary" class="file-link">
+            <el-link :href="file.url" type="primary" class="file-link" @click="sendMessage(file.title)">
               <span class="file-title">{{ file.title }}</span>
               <el-icon class="arrow-icon">
                 <ArrowRight />
@@ -148,10 +148,10 @@
     <!-- 底部咨询区域 -->
     <footer class="chat-footer">
       <!-- 咨询模板区域 -->
-      <div class="consult-area">
-        <div class="consult-label">咨询模板：<span class="template-text">毕业于某某大学，取得某某职称，有哪些支持政策</span></div>
+      <div class="consult-area" v-show="!loading">
+        <div class="consult-label">咨询模板：<span class="template-text">{{ templateQuestion }}</span></div>
       </div>
-
+      <div class="cancal" v-show="loading" @click="cancal">取消</div>
       <!-- 输入区域 -->
       <div class="input-container">
         <el-dropdown @command="handleCommand">
@@ -173,14 +173,15 @@
         </div>
         <el-input v-model="inputMessage" class="message-input" placeholder="请输入关键词" @keydown="handleKeyDown"
           size="medium" />
-        <div class="voice-button" @click="sendMessage">
+        <!-- <div class="voice-button" @click="sendMessage">
           <el-icon v-if="!loading">
             <Microphone />
           </el-icon>
           <el-icon v-else class="is-loading">
             <Loading />
           </el-icon>
-        </div>
+        </div> -->
+        <VoiceRecorder @submit-voice="handleVoiceSubmit" />
       </div>
     </footer>
 
@@ -212,7 +213,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="deleteSubmit">
+          <el-button type="primary" :loading="loading" @click="deleteSubmit">
             确认
           </el-button>
         </div>
@@ -227,6 +228,7 @@ import { useChatStore } from '@/stores/chat'
 import { useAssistantStore } from '@/stores/assistant'
 import { ElDialog } from 'element-plus'
 import { marked } from 'marked'
+import VoiceRecorder from '@/components/VoiceRecorder.vue'
 // 使用store
 const chatStore = useChatStore()
 const assistantStore = useAssistantStore()
@@ -245,8 +247,9 @@ const currentCategoryQuestions = computed(() => assistantStore.currentCategoryQu
 const inputMessage = ref('')
 const chatContainerRef = ref(null)
 const showHistoryDrawer = ref(false)
-
 const dialogVisible = ref(false)
+const inputSize = ref('default') // Element Plus的size属性有效值：'default', 'small', 'large'
+const templateQuestion = ref('毕业于某某大学，取得某某职称，有哪些支持政策')
 
 // 配置marked选项
 marked.setOptions({
@@ -306,19 +309,29 @@ const menuItems = [
 ]
 
 const handleCommand = (command) => {
-  console.log(command)
+  if (command === 'a') {
+    templateQuestion.value = '毕业于某某大学，取得某某职称，有哪些支持政策'
+  } else if (command === 'b') {
+    templateQuestion.value = '我毕业于某某大学，取得某某学历，能找到什么工作'
+  } else if (command === 'c') {
+    templateQuestion.value = '我是第一层次人才可以享受哪些绿色通道服务'
+  }
+}
+const cancal = () => {
+  chatStore.cancelStream && chatStore.cancelStream()
+  loading.value = false
 }
 
 // 初始化
 onMounted(async () => {
   try {
-    if (!window.sessionStorage.getItem('sessionId')) {
-      // 使用新的实时流处理方式创建会话
-      await chatStore.createNewSessionRealtime()
-      // 滚动到底部
-      await nextTick()
-      scrollToBottom()
-    }
+    // if (!window.sessionStorage.getItem('sessionId')) {
+    // 使用新的实时流处理方式创建会话
+    await chatStore.createNewSessionRealtime()
+    // 滚动到底部
+    await nextTick()
+    scrollToBottom()
+    // }
 
   } catch (error) {
     console.error('初始化失败:', error)
@@ -326,32 +339,18 @@ onMounted(async () => {
 })
 
 // 发送消息
-const sendMessage = async () => {
-  if (!inputMessage.value.trim() || loading.value) {
+const sendMessage = async (userMessage) => {
+  if ((!inputMessage.value.trim() && !userMessage) || loading.value) {
     return
   }
 
-  const message = inputMessage.value.trim()
+  const message = userMessage || inputMessage.value.trim()
   inputMessage.value = ''
-
-  // 将用户消息添加到消息列表
-  const userMessage = {
-    role: 'user',
-    content: message
-  }
-
-  // 滚动到底部
-  await nextTick()
-  scrollToBottom()
 
   // 发送到API
   try {
     // 使用聊天store发送消息
-    await chatStore.sendMessage(message)
-
-    // 滚动到底部
-    await nextTick()
-    scrollToBottom()
+    await chatStore.sendMessage(message, scrollToBottom)
   } catch (error) {
     console.error('发送消息失败:', error)
   }
@@ -378,13 +377,14 @@ const deleteSession = async (id) => {
 }
 
 // 选择菜单
-const selectMenu = (key) => {
-  assistantStore.setCategory(key)
+const selectMenu = ({ key, name }) => {
+  // assistantStore.setCategory(key)
 
-  // 自动填充该分类的第一个问题
-  if (assistantStore.categoryQuestions[key] && assistantStore.categoryQuestions[key].length > 0) {
-    inputMessage.value = assistantStore.categoryQuestions[key][0]
-  }
+  // // 自动填充该分类的第一个问题
+  // if (assistantStore.categoryQuestions[key] && assistantStore.categoryQuestions[key].length > 0) {
+  //   inputMessage.value = assistantStore.categoryQuestions[key][0]
+  // }
+  sendMessage(name)
 }
 
 // 选择问题
@@ -454,6 +454,12 @@ const checkMessageOverflow = () => {
     }
   })
 }
+
+// 处理语音识别结果
+const handleVoiceSubmit = (text) => {
+  inputMessage.value = text
+  // sendMessage()
+}
 </script>
 
 
@@ -501,6 +507,11 @@ const checkMessageOverflow = () => {
   p {
     margin-top: 8px;
     margin-bottom: 8px;
+  }
+
+  strong {
+    font-weight: 600;
+    color: #4285f4;
   }
 
   ul,
@@ -1007,6 +1018,18 @@ const checkMessageOverflow = () => {
   text-overflow: ellipsis;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  min-height: 45px;
+}
+
+.cancal {
+  background-color: #f5f5f5;
+  padding: 10px 15px 5px;
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 5px;
+  text-align: center;
+  cursor: pointer;
+  min-height: 45px;
 }
 
 .consult-label {
@@ -1060,16 +1083,7 @@ const checkMessageOverflow = () => {
   height: 40px;
 }
 
-.voice-button {
-  height: 38px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #000;
-  cursor: pointer;
-  font-size: 25px;
-  padding-left: 10px;
-}
+
 
 /* 加载状态 */
 .chat-loading {

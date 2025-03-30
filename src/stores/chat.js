@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import regflowApi from '@/api/regflow'
 import { ElMessage } from 'element-plus'
 import http from '@/utils/request'
-
+import { nextTick } from 'vue'
 export const useChatStore = defineStore('chat', {
   state: () => ({
     sessionId: '',
@@ -69,11 +69,11 @@ export const useChatStore = defineStore('chat', {
     },
 
     // 发送消息
-    async sendMessage(message) {
+    async sendMessage(message, scrollToBottom) {
       if (!message.trim()) {
         return false
       }
-      
+  
       // 取消之前的流
       this.cancelStream()
       
@@ -117,6 +117,12 @@ export const useChatStore = defineStore('chat', {
                 content = content.replace(/####/g, '');
                 // 更新消息内容
                 this.messageList[assistantMessageIndex].content = content;
+                if (scrollToBottom) {
+                  // 滚动到底部
+                  nextTick(() => {
+                    scrollToBottom()
+                  })
+                }
               }
             }
           },
@@ -132,6 +138,9 @@ export const useChatStore = defineStore('chat', {
             this.loading = false
             this.streaming = false
             this.streamCancel = null
+            nextTick(() => {
+              scrollToBottom()
+            })
           }
         )
         
