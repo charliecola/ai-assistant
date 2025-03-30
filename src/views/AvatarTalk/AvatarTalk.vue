@@ -13,6 +13,19 @@
     <div v-if="showWelcome && !isChatActive" class="welcome-screen" @click="activateChat">
       点击开启对话
     </div>
+    <div class="hot-container" v-if="isChatActive">
+      <div class="hot-q hot-chat" @click="openChat">
+        <img src="@/assets/images/hot-chat.png" />
+        <spn> 文字问答 </spn>
+      </div>
+      <div class="hot-q">
+        <img src="@/assets/images/hot-info.png" />
+        <spn> 文字问答 </spn>
+      </div>
+    </div>
+    <div class="pic_ganggang">
+      <img src="@/assets/images/pic_ganggang.png" />
+    </div>
     <!-- 聊天界面 -->
     <div v-if="isChatActive" class="chat-interface">
       <div class="chat-background"></div>
@@ -53,8 +66,8 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
@@ -65,19 +78,21 @@ import MarkdownIt from 'markdown-it'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import avatarImage from '@/assets/images/avatar.png'
 import userImage from '@/assets/images/user.png'
-
+import regflowApi from '@/api/regflow'
 import { useTTS } from '@/hooks/use-tts.js'
+
+import { useChatStore } from '@/stores/chat'
 
 export default {
   name: 'ChatbotWithAvatar',
 
   setup() {
+    const chatStore = useChatStore()
     const fullResponse = ref('')
 
     const { startTTS, stopTTS } = useTTS(fullResponse)
     // 路由和查询参数
-    const route = useRoute()
-    const robotKey = ref(route.query.robotKey || 'e7a1858e8d6541f892f5e65521060b3c')
+    const route = useRouter()
 
     // 状态管理
     const isLoading = ref(false)
@@ -298,7 +313,7 @@ export default {
         const response = await axios.get(
           `https://chatpal.top/prod-api/wx/getSignature?url=${encodeURIComponent(
             window.location.href.split('#')[0]
-          )}&robotKey=${robotKey.value}`
+          )}`
         )
 
         if (response.data.code === 200) {
@@ -441,159 +456,54 @@ export default {
     }
 
     const selectFAQItem = (index) => {
+      // 关闭 FAQ 面板
       showFAQ.value = false
+
+      // 获取问题
       const question = faqItems.value[index].question
+      // 获取答案
       const answer = faqItems.value[index].answer
 
+      // 添加用户消息
       addUserMessage(question)
+      // 延时1秒后添加机器人响应
       setTimeout(() => {
+        // 添加机器人响应
         addBotResponse(answer)
       }, 1000)
     }
 
+    const sessionId = computed(() => chatStore.sessionId)
     // 发送消息
-    const sendMessage = () => {
+    const sendMessage = async () => {
       stopTTS()
       fullResponse.value = ''
       if (userMessage.value.trim() === '') return
 
       addUserMessage(userMessage.value)
-      sendToChatAPI(userMessage.value)
-      userMessage.value = ''
-    }
-
-    // 聊天API集成
-    const sendToChatAPI = async (message) => {
-      const sessionId = generateSessionId()
-      const apiUrl = 'https://chatpal.top/ai-chat-api'
+      // sendToChatAPI(userMessage.value)
       const messageId = generateMessageId()
-
       addThinkingMessage(messageId)
 
-      // 准备要发送的JSON数据
-      const requestData = {
-        query: message,
-        knowledge_base_name: 'e7a1858e8d6541f892f5e65521060b3c',
-        top_k: 3,
-        score_threshold: 1,
-        history: [], // 可以根据需要添加历史消息
-        stream: true,
-        model_name: 'zhipu-api',
-        temperature: 0.7,
-        prompt_name: 'default',
-        local_doc_url: false,
-      }
-
-      try {
-        // 发起fetch请求
-        const response = await fetch(`${apiUrl}/chat/knowledge_base_chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
+      let isSparkChain = true
+      await chatStore.sendMessageAvatar(userMessage.value, (data) => {
+        if (data == '思考中...') {
+          return
         }
-
-        // 获取响应的reader来处理流
-        const reader = response.body.getReader()
-        fullResponse.value = ''
-        let isFirstResponse = true
-        let isSparkChain = true
-        // 文本解码器，用于将二进制数据转为文本
-        const decoder = new TextDecoder('utf-8')
-
-        // 处理流数据
-        while (true) {
-          const { done, value } = await reader.read()
-
-          if (done) {
-            break
-          }
-
-          // 解码接收到的数据
-          const chunk = decoder.decode(value, { stream: true })
-          // 处理接收到的数据块
-          // 注意：根据你的API返回格式可能需要调整此部分
-          // 假设每个数据块是一个完整的JSON字符串
-          try {
-            // 处理可能包含多个JSON对象的文本(用换行符分隔)
-            const lines = chunk.split('\n').filter((line) => line.trim() !== '')
-
-            for (const line of lines) {
-              if (line.startsWith('data:')) {
-                const jsonStr = line.substring(5).trim()
-                const data = JSON.parse(jsonStr)
-
-                if (data.docs && isFirstResponse) {
-                  // 第一个响应包含文档的特殊处理
-                  data.answer =
-                    '如有其他不明之处，可在工作时间联系泉州市高层次人才服务中心0595-28133880，或所在县（市、区）人才办。'
-                  isFirstResponse = false
-                }
-
-                if (data.answer) {
-                  if (isSparkChain) {
-                    setTimeout(() => {
-                      startTTS()
-                    }, 500)
-                    isSparkChain = false
-                  }
-                  fullResponse.value += data.answer
-                  // 用部分响应更新UI
-                  const messageElement = document.getElementById(messageId)
-                  if (messageElement) {
-                    messageElement.innerHTML = md.render(fullResponse.value)
-                    scrollToBottom()
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            console.error('解析流数据出错:', error)
-          }
+        fullResponse.value = data
+        if (isSparkChain) {
+          setTimeout(() => {
+            startTTS()
+          }, 500)
+          isSparkChain = false
         }
-      } catch (error) {
-        console.error('获取流式响应出错:', error)
-
-        // 处理错误情况，更新UI
         const messageElement = document.getElementById(messageId)
         if (messageElement) {
-          messageElement.innerHTML = '抱歉，获取回答时发生错误。'
+          messageElement.innerHTML = md.render(data)
           scrollToBottom()
         }
-      }
-    }
-
-    const triggerSpecialResponse = (responseId) => {
-      isAvatarIdle.value = false
-
-      axios.get(`./json/${responseId}.json`).then((response) => {
-        const { blendData, filename } = response.data[0]
-        const clip = createMorphTargetAnimation(blendData, morphTargetDictionary, 'head')
-        const action = mixer.clipAction(clip)
-
-        action.setLoop(THREE.LoopRepeat)
-        playAudio(filename)
-
-        setTimeout(() => {
-          if (specialAnimation) {
-            specialAnimation.setEffectiveTimeScale(1.2)
-
-            if (idleAnimation) idleAnimation.stop()
-            if (talkingAnimation) talkingAnimation.stop()
-
-            specialAnimation.loop = THREE.LoopOnce
-            specialAnimation.reset().play()
-
-            audioElement.play()
-            action.play()
-          }
-        }, 500)
       })
+      userMessage.value = ''
     }
 
     // 工具函数
@@ -609,9 +519,13 @@ export default {
       return `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`
     }
 
-    // 初始化组件
-    onMounted(() => {
+    const openChat = () => {
+      route.push('/home')
+    }
 
+    // 初始化组件
+    onMounted(async () => {
+      await chatStore.createNewSessionRealtime()
       // 点击外部时关闭常见问题
       document.addEventListener('click', (event) => {
         if (
@@ -626,7 +540,6 @@ export default {
       // 禁用右键点击
       window.oncontextmenu = () => false
     })
-
     return {
       // 引用
       canvasContainer,
@@ -644,6 +557,7 @@ export default {
       showFAQ,
       isMicActive,
       faqItems,
+      route,
 
       // 方法
       activateChat,
@@ -654,6 +568,7 @@ export default {
       selectFAQItem,
       startTTS,
       stopTTS,
+      openChat,
     }
   },
 }
@@ -1158,6 +1073,43 @@ export default {
     height: 2.5rem;
     border-radius: 9999px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}
+.hot-container {
+  position: absolute;
+  top: 120px;
+  right: 0px;
+  color: white;
+  z-index: 888;
+  .hot-q {
+    border: 1px solid orange;
+    font-size: 12px;
+    padding: 4px 8px;
+    line-height: 1;
+    border-radius: 999px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+    display: flex;
+    align-items: center;
+    background-color: #ffa500b3;
+    img {
+      width: 13px;
+      height: 13px;
+      margin-right: 4px;
+    }
+  }
+  .hot-chat {
+    margin-bottom: 10px;
+  }
+}
+.pic_ganggang {
+  position: absolute;
+  top: 46%;
+  left: 54%;
+  transform: translate(-50%, -50%);
+  img {
+    width: 100%;
   }
 }
 @keyframes spin {

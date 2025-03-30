@@ -115,6 +115,7 @@ export const useChatStore = defineStore('chat', {
                 // *'问题优化_0'* is running...🕞   *'知识检索_0'* is running...🕞  *'生成回答_0'* is running...🕞
                 content = content.replace(/\*'问题优化_0'\* is running...🕞|\*'知识检索_0'\* is running...🕞|\*'生成回答_0'\* is running...🕞/g, '思考中...');
                 content = content.replace(/####/g, '');
+                content = content.replace(/ ##.*?\$\$/g, ''); 
                 // 更新消息内容
                 this.messageList[assistantMessageIndex].content = content;
                 if (scrollToBottom) {
@@ -141,6 +142,86 @@ export const useChatStore = defineStore('chat', {
             nextTick(() => {
               scrollToBottom()
             })
+          }
+        )
+        
+        return response
+      } catch (error) {
+        console.error('发送消息失败:', error)
+        ElMessage.error('发送消息失败，请重试')
+        this.loading = false
+        this.streaming = false
+        throw error
+      }
+    },
+    // 发送消息
+    async sendMessageAvatar(message, callback) {
+      if (!message.trim()) {
+        return false
+      }
+  
+      // 取消之前的流
+      this.cancelStream()
+      
+      // 添加用户消息到列表
+      this.messageList.push({
+        role: 'user',
+        content: message
+      })
+      
+      // 发送请求
+      this.loading = true
+      this.streaming = true
+      try {
+        // 获取流式响应和处理方法
+        const response = await regflowApi.sendMessage({
+          sessionId: this.sessionId,
+          message: message
+        })
+        
+        // 添加一个空的助手消息，准备接收流式内容
+        const assistantMessageIndex = this.messageList.push({
+          role: 'assistant',
+          content: ''
+        }) - 1
+        
+        // 处理实时流
+        this.streamCancel = http.handleStreamResponse(response,
+          // 数据处理回调
+          (data) => {
+            if (data.code === 0 && data.data) {
+              // 如果data是对象，包含answer
+              if (typeof data.data === 'object' && data.data.answer && !/##.*?\$\$/.test(data?.data?.answer)) {
+                // 过滤掉思考过程
+                let content = data.data.answer;
+                if (content.includes('<think>')) {
+                  content = content.replace(/<think>.*?<\/think>/g, '');
+                }
+                // 移除流程提示词
+                // *'问题优化_0'* is running...🕞   *'知识检索_0'* is running...🕞  *'生成回答_0'* is running...🕞
+                content = content.replace(/\*'问题优化_0'\* is running...🕞|\*'知识检索_0'\* is running...🕞|\*'生成回答_0'\* is running...🕞/g, '思考中...');
+                content = content.replace(/####/g, '');
+                content = content.replace(/##.*?\$\$/g, '');
+                // 更新消息内容
+                // this.messageList[assistantMessageIndex].content = content;
+                if (callback) {
+                  // 滚动到底部
+                  callback(content)
+                }
+              }
+            }
+          },
+          // 错误处理回调
+          (error) => {
+            console.error('流处理错误:', error)
+            this.loading = false
+            this.streaming = false
+          },
+          // 完成处理回调
+          () => {
+            this.loading = false
+            this.streaming = false
+            this.streamCancel = null
           }
         )
         
