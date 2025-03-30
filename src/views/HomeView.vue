@@ -16,7 +16,11 @@
         </div>
 
         <div class="avatar-container">
-          <img src="@/assets/images/pic_ganggang.png" class="assistant-avatar" @click="gotoAvatarTalk" />
+          <img
+            src="@/assets/images/pic_ganggang.png"
+            class="assistant-avatar"
+            @click="gotoAvatarTalk"
+          />
         </div>
       </div>
 
@@ -239,7 +243,6 @@
           class="message-input"
           placeholder="请输入关键词"
           @keydown="handleKeyDown"
-          size="medium"
         />
         <VoiceRecorder @submit-voice="handleVoiceSubmit" v-show="!inputMessage" />
         <!-- 发送按钮 -->
@@ -295,8 +298,8 @@ import { ElDialog } from 'element-plus'
 import { marked } from 'marked'
 import VoiceRecorder from '@/components/VoiceRecorder.vue'
 
-import { useRouter } from 'vue-router';
-const router = useRouter();
+import { useRouter } from 'vue-router'
+const router = useRouter()
 // 使用store
 const chatStore = useChatStore()
 const assistantStore = useAssistantStore()
@@ -330,7 +333,6 @@ marked.setOptions({
 
 // 渲染Markdown
 const renderMarkdown = (content) => {
-  return content
   if (!content) return ''
   try {
     return marked(content)
@@ -528,8 +530,8 @@ const handleVoiceSubmit = (text) => {
   inputMessage.value = text
   // sendMessage()
 }
-const gotoAvatarTalk =()=>{
-  router.push('/avatarTalk');
+const gotoAvatarTalk = () => {
+  router.push('/avatarTalk')
 }
 </script>
 
@@ -584,7 +586,7 @@ const gotoAvatarTalk =()=>{
 
   ul,
   ol {
-    padding-left: 20px;
+    padding-left: 24px;
     margin-top: 8px;
     margin-bottom: 8px;
   }

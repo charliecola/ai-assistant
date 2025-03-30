@@ -16,20 +16,19 @@ export default {
   sendMessage(data) {
     return request.sseRequest(`${API_PREFIX}/completions`, {
       conversation: APP_ID,
-      quote: true,
+      quote: false,
       session_id: data.sessionId,
-      question: data.message
+      question: data.message,
     })
   },
-  
-  
+
   initSession() {
     return request.realtimeStream({
       url: `${API_PREFIX}/completions`,
       method: 'POST',
       data: {
-        question: ""
-      }
+        question: '',
+      },
     })
   },
 
@@ -40,7 +39,7 @@ export default {
   getHistoryList() {
     return request({
       url: `${API_PREFIX}/sessions`,
-      method: 'get'
+      method: 'get',
     })
   },
 
@@ -52,7 +51,7 @@ export default {
   getSessionDetail(sessionId) {
     return request({
       url: `${API_PREFIX}/sessions/${sessionId}`,
-      method: 'get'
+      method: 'get',
     })
   },
 
@@ -65,8 +64,8 @@ export default {
       url: `${API_PREFIX}/completions`,
       method: 'POST',
       data: {
-        question: ''
-      }
+        question: '',
+      },
     })
   },
 
@@ -78,7 +77,7 @@ export default {
   deleteSession(sessionId) {
     return request({
       url: `${API_PREFIX}/sessions/${sessionId}`,
-      method: 'delete'
+      method: 'delete',
     })
-  }
-} 
+  },
+}

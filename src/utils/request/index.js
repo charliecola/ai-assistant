@@ -84,7 +84,7 @@ export function createRequest(customConfig = {}) {
           localStorage.removeItem('regflow_token');
       } else if (response.data && response.data.error) {
           message = response.data.error.message || response.data.error;
-        }
+      }
     }
     
     ElMessage({
