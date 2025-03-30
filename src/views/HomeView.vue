@@ -18,7 +18,7 @@
         </div>
 
         <div class="avatar-container">
-          <img src="@/assets/images/pic_ganggang.png" class="assistant-avatar" />
+          <img src="@/assets/images/pic_ganggang.png" class="assistant-avatar" @click="gotoAvatarTalk" />
         </div>
       </div>
 
@@ -229,6 +229,9 @@ import { useAssistantStore } from '@/stores/assistant'
 import { ElDialog } from 'element-plus'
 import { marked } from 'marked'
 import VoiceRecorder from '@/components/VoiceRecorder.vue'
+
+import { useRouter } from 'vue-router';
+const router = useRouter();
 // 使用store
 const chatStore = useChatStore()
 const assistantStore = useAssistantStore()
@@ -459,6 +462,9 @@ const checkMessageOverflow = () => {
 const handleVoiceSubmit = (text) => {
   inputMessage.value = text
   // sendMessage()
+}
+const gotoAvatarTalk =()=>{
+  router.push('/avatarTalk');
 }
 </script>
 
