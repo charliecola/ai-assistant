@@ -531,7 +531,7 @@ const handleVoiceSubmit = (text) => {
   // sendMessage()
 }
 const gotoAvatarTalk = () => {
-  router.push('/avatarTalk')
+  router.push('/avatar-talk')
 }
 </script>
 
