@@ -18,10 +18,10 @@
         <img src="@/assets/images/hot-chat.png" />
         <spn> 文字问答 </spn>
       </div>
-      <div class="hot-q">
+      <!-- <div class="hot-q">
         <img src="@/assets/images/hot-info.png" />
-        <spn> 文字问答 </spn>
-      </div>
+        <spn> 热门问题 </spn>
+      </div> -->
     </div>
     <div class="pic_ganggang">
       <img src="@/assets/images/pic_ganggang.png" />
@@ -520,7 +520,7 @@ export default {
     }
 
     const openChat = () => {
-      route.push('/home')
+      route.push('/')
     }
 
     // 初始化组件

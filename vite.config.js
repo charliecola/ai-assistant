@@ -6,6 +6,12 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build:{
+    outDir: 'chat', // 输出目录改为 chat
+    assetsDir: 'assets', // 静态资源子目录（可选，默认是 assets）
+
+  },
+  base: '/', // 核心配置：所有资源路径会以 /chat/ 开头
   plugins: [
     vue(),
     // vueDevTools(),
