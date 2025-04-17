@@ -36,7 +36,16 @@ export function createRequest(customConfig = {}) {
 // 请求拦截器
   instance.interceptors.request.use(
   config => {
-      // 在请求发送之前添加认证令牌
+      // Get FH-Token from localStorage
+      const fhToken = localStorage.getItem('FH-Token');
+      if (fhToken) {
+        config.headers['FH-Token'] = fhToken;
+      } else {
+        // Handle cases where token is expected but not found, if necessary
+        console.warn('FH-Token not found in localStorage for request');
+      }
+
+      // 在请求发送之前添加认证令牌 (Assuming this is a different token)
       const token = import.meta.env.VITE_REGFLOW_API_KEY;
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;

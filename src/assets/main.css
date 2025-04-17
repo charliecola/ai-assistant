@@ -43,3 +43,8 @@ a,
     box-shadow: none !important;
   }
 }
+
+#app,
+.height-100 {
+  height: 100%;
+}

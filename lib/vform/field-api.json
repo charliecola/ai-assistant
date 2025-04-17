@@ -1,0 +1,12 @@
+[
+    {
+      "fieldName": "accountName",
+      "fieldLabel": "客户名称"
+    },
+  
+    {
+      "fieldName": "mobilePhone",
+      "fieldLabel": "手机号码"
+    }
+  ]
+  
